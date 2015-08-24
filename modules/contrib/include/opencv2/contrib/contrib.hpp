@@ -935,7 +935,7 @@ namespace cv
         virtual int predict(InputArray src) const = 0;
 
         // Predicts the label and confidence for a given sample.
-        CV_WRAP virtual void predict(InputArray src, CV_OUT int &label, CV_OUT double &confidence) const = 0;
+        CV_WRAP virtual void predict(InputArray src, CV_OUT int &label, CV_OUT double &confidence, CV_OUT OutputArray distance = noArray()) const = 0;
 
         // Serializes this object to a given filename.
         CV_WRAP virtual void save(const string& filename) const;

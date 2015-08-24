@@ -15,6 +15,7 @@
  *
  *   See <http://www.opensource.org/licenses/bsd-license>
  */
+#include <stdio.h>
 #include "precomp.hpp"
 #include <set>
 
@@ -213,7 +214,7 @@ public:
     int predict(InputArray src) const;
 
     // Predicts the label and confidence for a given sample.
-    void predict(InputArray _src, int &label, double &dist) const;
+    void predict(InputArray _src, int &label, double &dist, OutputArray distances) const;
 
     // See FaceRecognizer::load.
     void load(const FileStorage& fs);
@@ -268,7 +269,7 @@ public:
     int predict(InputArray src) const;
 
     // Predicts the label and confidence for a given sample.
-    void predict(InputArray _src, int &label, double &dist) const;
+    void predict(InputArray _src, int &label, double &dist, OutputArray distances) const;
 
     // See FaceRecognizer::load.
     void load(const FileStorage& fs);
@@ -352,7 +353,7 @@ public:
     int predict(InputArray src) const;
 
     // Predicts the label and confidence for a given sample.
-    void predict(InputArray _src, int &label, double &dist) const;
+    void predict(InputArray _src, int &label, double &dist, OutputArray distances) const;
 
     // See FaceRecognizer::load.
     void load(const FileStorage& fs);
@@ -475,7 +476,7 @@ void Eigenfaces::train(InputArrayOfArrays _src, InputArray _local_labels) {
     }
 }
 
-void Eigenfaces::predict(InputArray _src, int &minClass, double &minDist) const {
+void Eigenfaces::predict(InputArray _src, int &minClass, double &minDist, OutputArray distances) const {
     // get data
     Mat src = _src.getMat();
     // make sure the user is passing correct data
@@ -504,7 +505,8 @@ void Eigenfaces::predict(InputArray _src, int &minClass, double &minDist) const 
 int Eigenfaces::predict(InputArray _src) const {
     int label;
     double dummy;
-    predict(_src, label, dummy);
+    Mat dummy_distances;
+    predict(_src, label, dummy, dummy_distances);
     return label;
 }
 
@@ -611,7 +613,7 @@ void Fisherfaces::train(InputArrayOfArrays src, InputArray _lbls) {
     }
 }
 
-void Fisherfaces::predict(InputArray _src, int &minClass, double &minDist) const {
+void Fisherfaces::predict(InputArray _src, int &minClass, double &minDist, OutputArray distances) const {
     Mat src = _src.getMat();
     // check data alignment just for clearer exception messages
     if(_projections.empty()) {
@@ -639,7 +641,8 @@ void Fisherfaces::predict(InputArray _src, int &minClass, double &minDist) const
 int Fisherfaces::predict(InputArray _src) const {
     int label;
     double dummy;
-    predict(_src, label, dummy);
+    Mat dummy_distances;
+    predict(_src, label, dummy, dummy_distances);
     return label;
 }
 
@@ -954,7 +957,7 @@ void LBPH::train(InputArrayOfArrays _in_src, InputArray _in_labels, bool preserv
     }
 }
 
-void LBPH::predict(InputArray _src, int &minClass, double &minDist) const {
+void LBPH::predict(InputArray _src, int &minClass, double &minDist, OutputArray distances) const {
     if(_histograms.empty()) {
         // throw error if no data (or simply return -1?)
         string error_message = "This LBPH model is not computed yet. Did you call the train method?";
@@ -969,11 +972,23 @@ void LBPH::predict(InputArray _src, int &minClass, double &minDist) const {
             _grid_x, /* grid size x */
             _grid_y, /* grid size y */
             true /* normed histograms */);
+
+    // Create the return Matrix:
+    if (distances.needed()) {
+        distances.create(_histograms.size(), 1, CV_64FC1);
+    }
+
     // find 1-nearest neighbor
     minDist = DBL_MAX;
     minClass = -1;
     for(size_t sampleIdx = 0; sampleIdx < _histograms.size(); sampleIdx++) {
         double dist = compareHist(_histograms[sampleIdx], query, CV_COMP_CHISQR);
+
+        // Add to the resulting distance array:
+        if (distances.needed()) {
+            distances.getMat().at<double>(sampleIdx) = dist;
+        }
+
         if((dist < minDist) && (dist < _threshold)) {
             minDist = dist;
             minClass = _labels.at<int>((int) sampleIdx);
@@ -984,7 +999,8 @@ void LBPH::predict(InputArray _src, int &minClass, double &minDist) const {
 int LBPH::predict(InputArray _src) const {
     int label;
     double dummy;
-    predict(_src, label, dummy);
+    Mat dummy_distances;
+    predict(_src, label, dummy, dummy_distances);
     return label;
 }
 
